@@ -1,0 +1,246 @@
+{% extends 'base.html' %}
+
+{% block title %}Yeni Devir Oluştur{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <div class="d-flex justify-content-between align-items-center flex-wrap">
+            <h2 class="border-bottom pb-2 mb-0">
+                <i class="fas fa-exchange-alt me-2"></i>Yeni Devir Oluştur
+            </h2>
+            <div class="mt-2 mt-md-0">
+                <a href="{{ url_for('main.transfers') }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left me-1"></i><span class="d-none d-md-inline-block">Devir Listesine Dön</span>
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Devir Özeti -->
+    <div class="col-lg-4 mb-4">
+        <div class="card shadow h-100">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="fas fa-calculator me-2"></i>Devir Özeti</h5>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-info">
+                    <div class="d-flex align-items-center">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <div>
+                            <strong>Son Devir:</strong> {{ transfer_data.last_transfer.date.strftime('%d-%m-%Y %H:%M:%S.%f')[:-3] if transfer_data.last_transfer else 'İlk Devir' }}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row g-3">
+                    <div class="col-12">
+                        <div class="card bg-light">
+                            <div class="card-body">
+                                <h6 class="card-title text-primary mb-3">Son Devir Tutarı</h6>
+                                <h3 class="mb-0 text-center">{{ transfer_data.last_transfer_amount|round(4) }} g</h3>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-12">
+                        <div class="card bg-success bg-opacity-10">
+                            <div class="card-body">
+                                <h6 class="card-title text-success mb-3">Müşteri Has Girişleri (+)</h6>
+                                <h4 class="mb-0 text-center">{{ transfer_data.net_customer_pure_gold|round(4) if transfer_data.net_customer_pure_gold > 0 else '0.0000' }} g</h4>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-12">
+                        <div class="card bg-danger bg-opacity-10">
+                            <div class="card-body">
+                                <h6 class="card-title text-danger mb-3">Müşteri Has Çıkışları (-)</h6>
+                                <h4 class="mb-0 text-center">{{ (transfer_data.net_customer_pure_gold * -1)|round(4) if transfer_data.net_customer_pure_gold < 0 else '0.0000' }} g</h4>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-12">
+                        <div class="card bg-success bg-opacity-10">
+                            <div class="card-body">
+                                <h6 class="card-title text-success mb-3">İşçilik Has Girişleri (+)</h6>
+                                <h4 class="mb-0 text-center">{{ transfer_data.net_labor_pure_gold|round(4) if transfer_data.net_labor_pure_gold > 0 else '0.0000' }} g</h4>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-12">
+                        <div class="card bg-danger bg-opacity-10">
+                            <div class="card-body">
+                                <h6 class="card-title text-danger mb-3">İşçilik Has Çıkışları (-)</h6>
+                                <h4 class="mb-0 text-center">{{ (transfer_data.net_labor_pure_gold * -1)|round(4) if transfer_data.net_labor_pure_gold < 0 else '0.0000' }} g</h4>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-12">
+                        <div class="card bg-danger bg-opacity-10">
+                            <div class="card-body">
+                                <h6 class="card-title text-danger mb-3">Toplam Masraf (-)</h6>
+                                <h4 class="mb-0 text-center">{{ transfer_data.expense_total|round(4) }} g</h4>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-12">
+                        <div class="card bg-primary text-white">
+                            <div class="card-body">
+                                <h6 class="card-title mb-3">Hesaplanan Devir Tutarı</h6>
+                                <h3 class="mb-0 text-center">{{ transfer_data.transfer_amount|round(4) }} g</h3>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <form action="{{ url_for('main.new_transfer') }}" method="post" class="mt-4">
+                    {{ form.hidden_tag() }}
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-success btn-lg">
+                            <i class="fas fa-check-circle me-2"></i>Devir İşlemini Tamamla
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Devire Dahil Edilecek İşlemler -->
+    <div class="col-lg-8">
+        <!-- Müşteri İşlemleri -->
+        <div class="card shadow mb-4">
+            <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="fas fa-users me-2"></i>Devire Dahil Edilecek Müşteri İşlemleri</h5>
+                <input type="text" class="form-control form-control-sm" id="transaction-search" placeholder="İşlem ara..." style="width: 200px;">
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover table-striped mb-0" id="transactions-table">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Tarih</th>
+                                <th>Müşteri</th>
+                                <th>İşlem</th>
+                                <th>Ürün</th>
+                                <th>Gram</th>
+                                <th>Has Değer</th>
+                                <th>İşçilik Has</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% if transfer_data.transactions %}
+                                {% for tx in transfer_data.transactions %}
+                                    <tr>
+                                        <td>{{ tx.transaction_date.strftime('%d-%m-%Y %H:%M:%S.%f')[:-3] }}</td>
+                                        <td>{{ tx.customer.name }}</td>
+                                        <td>{{ tx.get_transaction_type_tr() }}</td>
+                                        <td>{{ tx.setting.name }}</td>
+                                        <td>{{ tx.gram|round(4) }}g</td>
+                                        <td>{{ tx.pure_gold_weight|round(4) }}g</td>
+                                        <td>{{ tx.labor_pure_gold|round(4) }}g</td>
+                                    </tr>
+                                {% endfor %}
+                            {% else %}
+                                <tr>
+                                    <td colspan="7" class="text-center py-4">
+                                        <div class="alert alert-info mb-0">
+                                            <i class="fas fa-info-circle me-2"></i>Devire dahil edilecek müşteri işlemi yok
+                                        </div>
+                                    </td>
+                                </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Masraflar -->
+        <div class="card shadow">
+            <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="fas fa-receipt me-2"></i>Devire Dahil Edilecek Masraflar</h5>
+                <input type="text" class="form-control form-control-sm" id="expense-search" placeholder="Masraf ara..." style="width: 200px;">
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover table-striped mb-0" id="expenses-table">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Tarih</th>
+                                <th>Açıklama</th>
+                                <th>TL Tutarı</th>
+                                <th>Altın Tutarı</th>
+                                <th>Altın Fiyatı</th>
+                                <th>İşlemi Yapan</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% if transfer_data.expenses %}
+                                {% for expense in transfer_data.expenses %}
+                                    <tr>
+                                        <td>{{ expense.date.strftime('%d-%m-%Y %H:%M:%S.%f')[:-3] }}</td>
+                                        <td>{{ expense.description }}</td>
+                                        <td>{{ expense.amount_tl|round(2) }} ₺</td>
+                                        <td>{{ expense.amount_gold|round(4) }} g</td>
+                                        <td>{{ expense.gold_price|round(2) }} ₺</td>
+                                        <td>{{ expense.user.username }}</td>
+                                    </tr>
+                                {% endfor %}
+                            {% else %}
+                                <tr>
+                                    <td colspan="6" class="text-center py-4">
+                                        <div class="alert alert-info mb-0">
+                                            <i class="fas fa-info-circle me-2"></i>Devire dahil edilecek masraf yok
+                                        </div>
+                                    </td>
+                                </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Müşteri işlemleri arama
+    const transactionSearch = document.getElementById('transaction-search');
+    const transactionsTable = document.getElementById('transactions-table');
+    if (transactionSearch && transactionsTable) {
+        transactionSearch.addEventListener('input', function() {
+            const searchText = this.value.toLowerCase();
+            const rows = transactionsTable.querySelectorAll('tbody tr');
+
+            rows.forEach(row => {
+                const text = row.textContent.toLowerCase();
+                row.style.display = text.includes(searchText) ? '' : 'none';
+            });
+        });
+    }
+
+    // Masraflar arama
+    const expenseSearch = document.getElementById('expense-search');
+    const expensesTable = document.getElementById('expenses-table');
+    if (expenseSearch && expensesTable) {
+        expenseSearch.addEventListener('input', function() {
+            const searchText = this.value.toLowerCase();
+            const rows = expensesTable.querySelectorAll('tbody tr');
+
+            rows.forEach(row => {
+                const text = row.textContent.toLowerCase();
+                row.style.display = text.includes(searchText) ? '' : 'none';
+            });
+        });
+    }
+</script>
+{% endblock %}

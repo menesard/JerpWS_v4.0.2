@@ -1,0 +1,816 @@
+{% extends 'base.html' %}
+
+{% block title %}İşlemler - Kuyumcu Takip Sistemi{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <div class="d-flex justify-content-between align-items-center flex-wrap">
+            <h2 class="border-bottom pb-2 mb-0">
+                <i class="fas fa-balance-scale me-2"></i>Manuel İşlemler
+            </h2>
+            <div class="mt-2 mt-md-0">
+                <a href="{{ url_for('main.dashboard') }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left me-1"></i><span class="d-none d-md-inline-block">Gösterge Paneli</span>
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Terazi Kartı ve İşlem Formu -->
+    <div class="col-lg-5 col-md-6 mb-4">
+        <!-- Terazi Kartı -->
+        <div class="card shadow mb-4">
+            <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="fas fa-weight me-2"></i>Terazi</h5>
+            </div>
+            <div class="card-body p-0">
+                <div class="weight-display-container">
+                    <div class="weight-display-inner">
+                        <div class="weight-value">
+                            <span id="weight-display">{{ '%.2f'|format(weight) }}</span>
+                            <small>gr</small>
+                        </div>
+                        <div class="weight-status">
+                            <span id="weight-status" class="badge {% if weight_valid %}bg-success{% else %}bg-warning{% endif %}">
+                                {{ 'Geçerli Okuma' if weight_valid else 'Son Bilinen Değer' }}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                <div class="p-3 border-top">
+                    <button type="button" id="use-scale-btn" class="btn btn-primary w-100">
+                        <i class="fas fa-sync-alt me-2"></i>Terazi Değerini Kullan
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Son İşlemler - Sadece mobilde gizlenir, masaüstünde görünür -->
+        <div class="card shadow d-none d-lg-block">
+            <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="fas fa-history me-2"></i>Son İşlemler</h5>
+                <a href="{{ url_for('main.history') }}" class="btn btn-sm btn-light">
+                    <i class="fas fa-external-link-alt me-1"></i>Tüm Geçmiş
+                </a>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover table-striped mb-0" id="recent-operations-lg">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Zaman</th>
+                                <th>İşlem</th>
+                                <th>Bölge</th>
+                                <th>Gram</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td colspan="4" class="text-center py-3">
+                                    <div class="spinner-border text-primary" role="status">
+                                        <span class="visually-hidden">Yükleniyor...</span>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- İşlem Formu - Masaüstü optimizasyonu -->
+    <div class="col-lg-7 col-md-6 mb-4">
+        <div class="card shadow h-100">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="fas fa-edit me-2"></i>İşlem</h5>
+            </div>
+            <div class="card-body">
+                <form method="post" class="needs-validation" novalidate id="operationForm">
+                    <!-- İşlem Tipi - Masaüstü için yatay radyo butonları -->
+                    <div class="mb-4">
+                        <label class="form-label mb-2">İşlem Tipi <span class="text-danger">*</span></label>
+                        <div class="operation-type-btns d-flex">
+                            <div class="btn-group d-flex w-100" role="group">
+                                <input type="radio" class="btn-check" name="operation_type" id="operation_add" value="add" checked>
+                                <label class="btn btn-outline-success" for="operation_add">
+                                    <i class="fas fa-plus me-1"></i>Ekle
+                                </label>
+
+                                <input type="radio" class="btn-check" name="operation_type" id="operation_subtract" value="subtract">
+                                <label class="btn btn-outline-danger" for="operation_subtract">
+                                    <i class="fas fa-minus me-1"></i>Çıkar
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Bölge Seçimi ve Gram - Masaüstü için yan yana -->
+                    <div class="row mb-4">
+                        <div class="col-md-8">
+                            <label class="form-label mb-2">Bölge <span class="text-danger">*</span></label>
+                            <div class="region-grid d-flex flex-wrap gap-2">
+                                {% for region in regions %}
+                                    {% if not current_user.role == 'staff' or (region.name != 'masa' and region.name != 'table' and region.name != 'yer') %}
+                                        <div class="region-button-container">
+                                            <input type="radio" class="btn-check region-radio" name="region" id="region_{{ region.name }}" value="{{ region.name }}" {% if loop.first %}checked{% endif %} required>
+                                            <label class="region-button desktop-region-button" for="region_{{ region.name }}">
+                                                <i class="fas {% if region.name == 'table' %}fa-table{% elif region.name == 'polish' %}fa-brush{% elif region.name == 'melting' %}fa-fire{% elif region.name == 'saw' %}fa-cut{% elif region.name == 'acid' %}fa-flask{% else %}fa-box{% endif %}"></i>
+                                                <span>{{ region.name_tr }}</span>
+                                            </label>
+                                        </div>
+                                    {% endif %}
+                                {% endfor %}
+                            </div>
+                        </div>
+
+                        <div class="col-md-4">
+                            <label for="gram" class="form-label mb-2">Gram <span class="text-danger">*</span></label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fas fa-weight-hanging"></i></span>
+                                <input type="number" step="0.01" min="0.01" class="form-control" id="gram" name="gram"
+                                      value="{{ '%.2f'|format(weight) }}" required>
+                                <span class="input-group-text">g</span>
+                                <button type="button" id="use-scale" class="btn btn-outline-secondary" title="Teraziden Al">
+                                    <i class="fas fa-sync-alt"></i>
+                                </button>
+                            </div>
+                            <div class="form-text text-center mt-2 d-none d-md-block">
+                                <i class="fas fa-info-circle me-1"></i>
+                                Terazi değeri otomatik alınır
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="d-grid mt-4">
+                        <button type="submit" class="btn btn-primary btn-lg">
+                            <i class="fas fa-check-circle me-1"></i>İşlemi Gerçekleştir
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Son İşlemler - Mobil için tüm genişlik -->
+<div class="row mb-4 d-lg-none">
+    <div class="col-12">
+        <div class="card shadow">
+            <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="fas fa-history me-2"></i>Son İşlemler</h5>
+                <a href="{{ url_for('main.history') }}" class="btn btn-sm btn-light">
+                    <i class="fas fa-external-link-alt me-1"></i><span class="d-none d-md-inline-block">Tüm Geçmiş</span>
+                </a>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover table-striped mb-0 table-mobile" id="recent-operations">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Zaman</th>
+                                <th>İşlem</th>
+                                <th>Bölge</th>
+                                <th>Gram</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td colspan="4" class="text-center py-3">
+                                    <div class="spinner-border text-primary" role="status">
+                                        <span class="visually-hidden">Yükleniyor...</span>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- İşlem sonrası bildirim modalı -->
+<div class="modal fade" id="operationResultModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-info-circle me-2"></i>İşlem Sonucu</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Kapat"></button>
+            </div>
+            <div class="modal-body text-center">
+                <div id="operation-result-icon" class="mb-3">
+                    <i class="fas fa-check-circle text-success fa-5x"></i>
+                </div>
+                <h4 id="operation-result-title" class="mb-3">İşlem Başarılı</h4>
+                <p id="operation-result-message" class="mb-0">İşlem başarıyla tamamlandı.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Tamam</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Mobil için gizli CSS -->
+<style>
+/* Masaüstü için region butonları optimizasyonu */
+@media (min-width: 769px) {
+    .region-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 80px);
+        gap: 8px;
+        justify-content: center;
+    }
+
+    .region-button-container {
+        width: 80px;
+        height: 80px;
+    }
+
+    .desktop-region-button {
+        display: flex;
+        flex-direction: column !important;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+        height: 100%;
+        padding: 8px;
+        border-radius: 6px;
+        background-color: #f8f9fa;
+        border: 1px solid #dee2e6;
+        cursor: pointer;
+        transition: all 0.3s;
+        font-size: 0.85rem;
+    }
+
+    .desktop-region-button i {
+        font-size: 1.5rem;
+        margin-bottom: 6px !important;
+    }
+
+    .desktop-region-button span {
+        font-size: 0.75rem;
+        text-align: center;
+        line-height: 1.2;
+    }
+
+    .btn-check:checked + .desktop-region-button {
+        background-color: #0d6efd;
+        border-color: #0d6efd;
+        color: white;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+
+    /* İşlem tipi butonları büyüt ve yüksekliği ayarla */
+    .operation-type-btns .btn {
+        padding: 10px 0;
+        font-size: 1rem;
+    }
+
+    /* Doğrulama hata gösterimi geliştirme */
+    .was-validated .form-control:invalid,
+    .was-validated .form-select:invalid {
+        border-color: #dc3545;
+        box-shadow: 0 0 0 0.25rem rgba(220, 53, 69, 0.25);
+    }
+
+    /* Terazi ekranı için iyileştirme */
+    #weight-display {
+        font-size: 3.5rem;
+        transition: all 0.3s ease;
+    }
+
+    .weight-updated {
+        color: #0d6efd;
+        transform: scale(1.05);
+    }
+
+    /* Form alanlarının görünümünü iyileştir */
+    #operationForm .form-control,
+    #operationForm .form-select,
+    #operationForm .input-group-text {
+        padding: 0.5rem 0.75rem;
+    }
+
+    /* Gönderme butonu iyileştirmesi */
+    #operationForm .btn-primary {
+        padding: 0.75rem 1.5rem;
+        font-size: 1.1rem;
+    }
+}
+
+@media (max-width: 768px) {
+    .weight-display-container {
+        padding: 0.5rem;
+    }
+
+    .weight-display-inner {
+        padding: 0.5rem;
+    }
+
+    .weight-value #weight-display {
+        font-size: 1.75rem;
+    }
+
+    .weight-value small {
+        font-size: 0.9rem;
+    }
+
+    .region-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 80px);
+        gap: 8px;
+        justify-content: center;
+    }
+
+    .region-button-container {
+        width: 80px;
+        height: 80px;
+    }
+
+    .region-button {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+        height: 100%;
+        border-radius: 6px;
+        background-color: #f8f9fa;
+        border: 2px solid #dee2e6;
+        cursor: pointer;
+        transition: all 0.3s;
+        padding: 8px;
+    }
+
+    .region-button i {
+        font-size: 1.5rem;
+        margin-bottom: 6px;
+    }
+
+    .region-button span {
+        font-size: 0.75rem;
+        text-align: center;
+        line-height: 1.2;
+    }
+
+    .btn-check:checked + .region-button {
+        background-color: #0d6efd;
+        border-color: #0d6efd;
+        color: white;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+
+    .btn-check:focus + .region-button {
+        box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+    }
+
+    .form-control-lg {
+        font-size: 1.25rem;
+        padding: 0.75rem 1rem;
+        height: calc(3.5rem + 2px);
+    }
+
+    .btn-lg {
+        padding: 0.75rem 1rem;
+        font-size: 1.25rem;
+    }
+}
+
+/* Mobil tablo görünümü için CSS düzeltmeleri */
+@media screen and (max-width: 768px) {
+    .table-mobile {
+        border: 0;
+    }
+
+    .table-mobile thead {
+        display: none;
+    }
+
+    .table-mobile tr {
+        display: block;
+        margin-bottom: 1rem;
+        border: 1px solid #dee2e6;
+        border-radius: 0.25rem;
+        background-color: #fff;
+    }
+
+    .table-mobile td {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.75rem;
+        text-align: right;
+        border-bottom: 1px solid #dee2e6;
+        white-space: normal !important;
+        overflow: visible !important;
+        text-overflow: clip !important;
+    }
+
+    .table-mobile td:last-child {
+        border-bottom: 0;
+    }
+
+    .table-mobile td::before {
+        content: attr(data-label);
+        float: left;
+        font-weight: bold;
+        text-align: left;
+        padding-right: 10px;
+    }
+
+    /* Tablo hücrelerindeki içeriğin düzgün görünmesi için */
+    .table-mobile td > * {
+        max-width: 50%;
+        word-wrap: break-word;
+    }
+}
+
+/* Terazi gösterge stili */
+.weight-display-container {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    padding: 0.5rem;
+    text-align: center;
+}
+
+.weight-display-inner {
+    background-color: white;
+    border-radius: 6px;
+    padding: 0.5rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.weight-value {
+    font-family: 'Digital-7', monospace;
+    margin-bottom: 0.15rem;
+}
+
+.weight-value #weight-display {
+    font-size: 2rem;
+    font-weight: 600;
+    color: #2c3e50;
+    text-shadow: 1px 1px 1px rgba(0,0,0,0.1);
+    letter-spacing: 1px;
+}
+
+.weight-value small {
+    font-size: 1rem;
+    color: #6c757d;
+    margin-left: 0.25rem;
+}
+
+.weight-status {
+    margin-top: 0.15rem;
+}
+
+.weight-status .badge {
+    font-size: 0.7rem;
+    padding: 0.25rem 0.5rem;
+    border-radius: 50px;
+}
+
+/* Animasyon efekti */
+.weight-updated {
+    animation: pulse 0.3s ease-in-out;
+}
+
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Form elemanları
+    const operationForm = document.getElementById('operationForm');
+    const gramInput = document.getElementById('gram');
+    const weightDisplay = document.getElementById('weight-display');
+
+    // Terazi ekranına tıklama ile gram alanını otomatik doldurma
+    weightDisplay.addEventListener('click', function() {
+        const currentWeight = parseFloat(this.textContent.trim());
+        if (currentWeight > 0) {
+            gramInput.value = currentWeight.toFixed(2);
+
+            // Değer değişimini vurgulama animasyonu
+            gramInput.classList.add('is-valid');
+            setTimeout(() => {
+                gramInput.classList.remove('is-valid');
+            }, 1000);
+
+            // Titreşim (mobil cihazlarda) - navigator.vibrate API destekleniyorsa
+            if (navigator.vibrate) {
+                navigator.vibrate(50);
+            }
+
+            // Hafif bildirim
+            showNotification('Terazi değeri alındı', 'success', 1500);
+        }
+    });
+
+    // Form gönderme işlevi
+    function submitForm() {
+        if (operationForm.checkValidity()) {
+            // Form verilerini al
+            const formData = new FormData(operationForm);
+
+            // Gram değerini kontrol et
+            const gramValue = parseFloat(formData.get('gram'));
+            if (!gramValue || isNaN(gramValue) || gramValue <= 0) {
+                showNotification('Geçerli bir gram değeri giriniz!', 'warning');
+                return false;
+            }
+
+            // Form gönderimi
+            operationForm.submit();
+        } else {
+            // Form doğrulamasını göster
+            operationForm.classList.add('was-validated');
+
+            // İlk hatayı bul ve odaklan
+            const firstInvalid = operationForm.querySelector(':invalid');
+            if (firstInvalid) {
+                firstInvalid.focus();
+            }
+        }
+    }
+
+    // Form gönderildiğinde
+    if (operationForm) {
+        operationForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            submitForm();
+        });
+    }
+
+    // Ağırlık güncelleme fonksiyonu
+    function updateWeight() {
+        fetch('/api/weight')
+            .then(response => {
+                if (response.status === 401) {
+                    window.location.href = "{{ url_for('main.login') }}";
+                    return;
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data) {
+                    const displayElement = document.getElementById('weight-display');
+                    const statusElement = document.getElementById('weight-status');
+
+                    if (displayElement) {
+                        displayElement.textContent = data.weight.toFixed(2);
+                        displayElement.classList.add('weight-updated');
+                        setTimeout(() => {
+                            displayElement.classList.remove('weight-updated');
+                        }, 300);
+                    }
+
+                    if (statusElement) {
+                        if (data.is_valid) {
+                            statusElement.textContent = 'Geçerli Okuma';
+                            statusElement.classList.remove('bg-warning');
+                            statusElement.classList.add('bg-success');
+                        } else {
+                            statusElement.textContent = 'Son Bilinen Değer';
+                            statusElement.classList.remove('bg-success');
+                            statusElement.classList.add('bg-warning');
+                        }
+                    }
+                }
+            })
+            .catch(error => {
+                console.error('Ağırlık bilgisi alınamadı:', error);
+            });
+    }
+
+    // Son işlemleri yükle
+    function loadRecentOperations() {
+        fetch('/api/logs?limit=5')
+            .then(response => response.json())
+            .then(data => {
+                const logs = data.logs;
+                const mobileTable = document.querySelector('#recent-operations tbody');
+                const desktopTable = document.querySelector('#recent-operations-lg tbody');
+
+                if (mobileTable) {
+                    mobileTable.innerHTML = '';
+
+                    if (logs.length === 0) {
+                        mobileTable.innerHTML = `
+                            <tr>
+                                <td colspan="4" class="text-center py-3">
+                                    <div class="alert alert-info mb-0">
+                                        <i class="fas fa-info-circle me-2"></i>Henüz işlem kaydı bulunmuyor
+                                    </div>
+                                </td>
+                            </tr>
+                        `;
+                    } else {
+                        logs.forEach(log => {
+                            const row = document.createElement('tr');
+
+                            // Mobil için sadeleştirilmiş işlem listesi
+                            const source = log.source_region || '-';
+                            const target = log.target_region || '-';
+                            const region = log.operation_type === 'ADD' ? target : source;
+
+                            row.innerHTML = `
+                                <td data-label="Zaman">${log.time}</td>
+                                <td data-label="İşlem">
+                                    <span class="badge ${log.operation_type === 'ADD' ? 'bg-success' : 'bg-danger'}">
+                                        ${log.operation_type === 'ADD' ? 'EKLEME' : 'ÇIKARMA'}
+                                    </span>
+                                </td>
+                                <td data-label="Bölge">${region}</td>
+                                <td data-label="Gram">${log.gram}</td>
+                            `;
+                            mobileTable.appendChild(row);
+                        });
+                    }
+                }
+
+                if (desktopTable) {
+                    desktopTable.innerHTML = '';
+
+                    if (logs.length === 0) {
+                        desktopTable.innerHTML = `
+                            <tr>
+                                <td colspan="4" class="text-center py-3">
+                                    <div class="alert alert-info mb-0">
+                                        <i class="fas fa-info-circle me-2"></i>Henüz işlem kaydı bulunmuyor
+                                    </div>
+                                </td>
+                            </tr>
+                        `;
+                    } else {
+                        logs.forEach(log => {
+                            const row = document.createElement('tr');
+
+                            // Desktop için işlem listesi
+                            const source = log.source_region || '-';
+                            const target = log.target_region || '-';
+                            const region = log.operation_type === 'ADD' ? target : source;
+
+                            row.innerHTML = `
+                                <td>${log.time}</td>
+                                <td>
+                                    <span class="badge ${log.operation_type === 'ADD' ? 'bg-success' : 'bg-danger'}">
+                                        ${log.operation_type === 'ADD' ? 'EKLEME' : 'ÇIKARMA'}
+                                    </span>
+                                </td>
+                                <td>${region}</td>
+                                <td>${log.gram}</td>
+                            `;
+                            desktopTable.appendChild(row);
+                        });
+                    }
+                }
+            })
+            .catch(error => {
+                console.error('İşlem kayıtları alınamadı:', error);
+            });
+    }
+
+    // Terazi değerini alma butonları
+    const useScaleBtn = document.getElementById('use-scale-btn');
+    const useScaleButton = document.getElementById('use-scale');
+
+    function updateGramFromScale() {
+        fetch('/api/weight')
+            .then(response => {
+                if (response.status === 401) {
+                    window.location.href = "{{ url_for('main.login') }}";
+                    return;
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data) {
+                    gramInput.value = data.weight.toFixed(2);
+
+                    // Form doğrulama güncellemesi
+                    if (gramInput.classList.contains('is-invalid')) {
+                        gramInput.classList.remove('is-invalid');
+                        if (parseFloat(gramInput.value) > 0) {
+                            gramInput.classList.add('is-valid');
+                        }
+                    }
+
+                    // Kullanıcıya bildirim
+                    showNotification('Terazi değeri alındı', 'success');
+                }
+            })
+            .catch(error => {
+                console.error('Ağırlık bilgisi alınamadı:', error);
+                showNotification('Ağırlık bilgisi alınamadı', 'danger');
+            });
+    }
+
+    if (useScaleBtn) {
+        useScaleBtn.addEventListener('click', updateGramFromScale);
+    }
+
+    if (useScaleButton) {
+        useScaleButton.addEventListener('click', updateGramFromScale);
+    }
+
+    // İlk yükleme
+    updateWeight();
+    loadRecentOperations();
+
+    // Düzenli aralıklarla veri güncelleme
+    const weightUpdateInterval = setInterval(updateWeight, 300);
+    const operationsUpdateInterval = setInterval(loadRecentOperations, 30000);
+
+    // Sayfa kapatıldığında interval'i temizle
+    window.addEventListener('beforeunload', function() {
+        clearInterval(weightUpdateInterval);
+        clearInterval(operationsUpdateInterval);
+    });
+
+    // Bildirim gösterme fonksiyonu
+    function showNotification(message, type = 'info', duration = 3000) {
+        // Bildirim container'ı oluştur
+        let container = document.querySelector('.notification-container');
+        if (!container) {
+            container = document.createElement('div');
+            container.className = 'notification-container';
+            document.body.appendChild(container);
+        }
+
+        // Bildirim elementi oluştur
+        const notification = document.createElement('div');
+        notification.className = `notification notification-${type} fade-in`;
+
+        // İkon ekle
+        let icon = '';
+        switch (type) {
+            case 'success':
+                icon = '<i class="fas fa-check-circle"></i>';
+                break;
+            case 'danger':
+                icon = '<i class="fas fa-exclamation-circle"></i>';
+                break;
+            case 'warning':
+                icon = '<i class="fas fa-exclamation-triangle"></i>';
+                break;
+            default:
+                icon = '<i class="fas fa-info-circle"></i>';
+                break;
+        }
+
+        notification.innerHTML = `
+            <div class="notification-icon">${icon}</div>
+            <div class="notification-message">${message}</div>
+            <button class="notification-close"><i class="fas fa-times"></i></button>
+        `;
+
+        // Container'a ekle
+        container.appendChild(notification);
+
+        // Kapatma butonunu etkinleştir
+        const closeButton = notification.querySelector('.notification-close');
+        closeButton.addEventListener('click', () => {
+            notification.classList.add('fade-out');
+            setTimeout(() => {
+                notification.remove();
+            }, 300);
+        });
+
+        // Belirli süre sonra otomatik kapat
+        setTimeout(() => {
+            notification.classList.add('fade-out');
+            setTimeout(() => {
+                notification.remove();
+            }, 300);
+        }, duration);
+    }
+
+    // Region select kontrolü
+    if (operationForm) {
+        const regionSelect = document.getElementById('region');
+        const userRole = '{{ current_user.role }}';
+        
+        operationForm.addEventListener('submit', function(e) {
+            const selectedRegion = regionSelect.value;
+            if (userRole === 'staff' && (selectedRegion === 'masa' || selectedRegion === 'table' || selectedRegion === 'yer')) {
+                e.preventDefault();
+                alert('Bu bölgeyi kullanma yetkiniz yok!');
+                return false;
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

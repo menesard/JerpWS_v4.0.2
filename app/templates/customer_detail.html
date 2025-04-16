@@ -1,0 +1,446 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ customer.name }} - Kuyumcu Takip Sistemi{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <div class="d-flex justify-content-between align-items-center flex-wrap">
+            <h2 class="border-bottom pb-2 mb-0">
+                <i class="fas fa-user me-2"></i>{{ customer.name }}
+                <i class="fas fa-info-circle ms-2 text-primary" style="cursor: pointer;" data-bs-toggle="modal" data-bs-target="#customerInfoModal"></i>
+            </h2>
+            <div class="mt-2 mt-md-0">
+                <a href="{{ url_for('main.customers') }}" class="btn btn-outline-secondary me-2">
+                    <i class="fas fa-arrow-left me-1"></i><span class="d-none d-md-inline-block">Müşteriler</span>
+                </a>
+                <a href="{{ url_for('main.add_customer_transaction', customer_id=customer.id) }}" class="btn btn-success">
+                    <i class="fas fa-plus me-1"></i><span class="d-none d-md-inline-block">Yeni İşlem</span>
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Müşteri Bilgileri Modal -->
+<div class="modal fade" id="customerInfoModal" tabindex="-1" aria-labelledby="customerInfoModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="customerInfoModalLabel">
+                    <i class="fas fa-user-circle me-2"></i>Müşteri Bilgileri
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Kapat"></button>
+            </div>
+            <div class="modal-body">
+                <div class="list-group list-group-flush">
+                    <div class="list-group-item">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="text-muted"><i class="fas fa-user me-2"></i>Müşteri Adı:</span>
+                            <span class="fw-bold">{{ customer.name }}</span>
+                        </div>
+                    </div>
+                    <div class="list-group-item">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="text-muted"><i class="fas fa-phone me-2"></i>Telefon:</span>
+                            <span>
+                                {% if customer.phone %}
+                                <a href="tel:{{ customer.phone }}" class="text-decoration-none">{{ customer.phone }}</a>
+                                {% else %}
+                                <span class="text-muted">-</span>
+                                {% endif %}
+                            </span>
+                        </div>
+                    </div>
+                    <div class="list-group-item">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="text-muted"><i class="fas fa-envelope me-2"></i>E-posta:</span>
+                            <span>
+                                {% if customer.email %}
+                                <a href="mailto:{{ customer.email }}" class="text-decoration-none">{{ customer.email }}</a>
+                                {% else %}
+                                <span class="text-muted">-</span>
+                                {% endif %}
+                            </span>
+                        </div>
+                    </div>
+                    <div class="list-group-item">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="text-muted"><i class="fas fa-map-marker-alt me-2"></i>Adres:</span>
+                            <span class="text-end">{{ customer.address or '-' }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Kapat</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Has Bakiye Bilgileri -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card shadow">
+            <div class="card-header bg-warning text-dark d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="fas fa-coins me-2"></i>Has Bakiye Bilgileri
+                    <i class="fas fa-info-circle ms-2" style="cursor: pointer;" data-bs-toggle="modal" data-bs-target="#hasBalanceModal"></i>
+                </h5>
+                <span class="badge bg-dark">{{ "%.4f"|format(pure_gold_balance.total_net_pure_gold) }} g</span>
+            </div>
+            <div class="card-body text-center">
+                <div class="card bg-light border-primary h-100">
+                    <div class="card-body">
+                        <h6 class="card-title">
+                            <i class="fas fa-balance-scale me-2 text-primary"></i>Toplam Has Bakiye
+                        </h6>
+                        <h3 class="{{ 'text-danger' if pure_gold_balance.total_net_pure_gold > 0 else 'text-success' if pure_gold_balance.total_net_pure_gold < 0 else '' }}">
+                            {{ "%.4f"|format(pure_gold_balance.total_net_pure_gold) }} g
+                        </h3>
+                        <div class="small text-muted">
+                            Has + İşçilik Has Karşılığı
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Has Bakiye Detay Modal -->
+<div class="modal fade" id="hasBalanceModal" tabindex="-1" aria-labelledby="hasBalanceModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-warning text-dark">
+                <h5 class="modal-title" id="hasBalanceModalLabel">
+                    <i class="fas fa-coins me-2"></i>Has Bakiye Detayları
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Kapat"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row g-3">
+                    <div class="col-12">
+                        <div class="card bg-light">
+                            <div class="card-body">
+                                <h6 class="card-title text-center">
+                                    <i class="fas fa-coins me-2 text-warning"></i>Has Altın
+                                </h6>
+                                <h3 class="text-center {{ 'text-danger' if pure_gold_balance.net_pure_gold > 0 else 'text-success' if pure_gold_balance.net_pure_gold < 0 else '' }}">
+                                    {{ "%.4f"|format(pure_gold_balance.net_pure_gold) }} g
+                                </h3>
+                                <div class="d-flex justify-content-between small">
+                                    <span class="text-success">Giriş: {{ "%.4f"|format(pure_gold_balance.pure_gold_inputs) }} g</span>
+                                    <span class="text-danger">Çıkış: {{ "%.4f"|format(pure_gold_balance.pure_gold_outputs) }} g</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-12">
+                        <div class="card bg-light">
+                            <div class="card-body">
+                                <h6 class="card-title text-center">
+                                    <i class="fas fa-tools me-2 text-secondary"></i>İşçilik Has Karşılığı
+                                </h6>
+                                <h3 class="text-center {{ 'text-danger' if pure_gold_balance.net_labor_pure_gold > 0 else 'text-success' if pure_gold_balance.net_labor_pure_gold < 0 else '' }}">
+                                    {{ "%.4f"|format(pure_gold_balance.net_labor_pure_gold) }} g
+                                </h3>
+                                <div class="d-flex justify-content-between small">
+                                    <span class="text-success">Giriş: {{ "%.4f"|format(pure_gold_balance.labor_pure_gold_inputs) }} g</span>
+                                    <span class="text-danger">Çıkış: {{ "%.4f"|format(pure_gold_balance.labor_pure_gold_outputs) }} g</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-12">
+                        <div class="card bg-light border-primary">
+                            <div class="card-body">
+                                <h6 class="card-title text-center">
+                                    <i class="fas fa-balance-scale me-2 text-primary"></i>Toplam Has Bakiye
+                                </h6>
+                                <h3 class="text-center {{ 'text-danger' if pure_gold_balance.total_net_pure_gold > 0 else 'text-success' if pure_gold_balance.total_net_pure_gold < 0 else '' }}">
+                                    {{ "%.4f"|format(pure_gold_balance.total_net_pure_gold) }} g
+                                </h3>
+                                <div class="small text-muted text-center">
+                                    Has + İşçilik Has Karşılığı
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Kapat</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- İşlem Filtresi -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card shadow">
+            <div class="card-body py-2">
+                <div class="d-flex flex-wrap gap-2 align-items-center justify-content-between">
+                    <div class="d-flex align-items-center flex-wrap">
+                        <div class="me-3">
+                            <label class="form-label mb-0 d-inline-block me-2">Göster:</label>
+                            <div class="btn-group" role="group" aria-label="İşlem türü filtresi">
+                                <button type="button" class="btn btn-sm btn-outline-secondary transaction-filter active" data-filter="all">Tümü</button>
+                                <button type="button" class="btn btn-sm btn-outline-success transaction-filter" data-filter="in">Girişler</button>
+                                <button type="button" class="btn btn-sm btn-outline-danger transaction-filter" data-filter="out">Çıkışlar</button>
+                            </div>
+                        </div>
+
+                        <div class="me-3 d-none d-md-block">
+                            <label class="form-label mb-0 d-inline-block me-2">Ayar:</label>
+                            <select class="form-select form-select-sm d-inline-block" style="width: auto;" id="settingFilter">
+                                <option value="all">Tümü</option>
+                                <option value="8">8</option>
+                                <option value="14">14</option>
+                                <option value="18">18</option>
+                                <option value="21">21</option>
+                                <option value="22">22</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="search-container">
+                        <input type="text" class="form-control form-control-sm" placeholder="İşlem ara..." id="transactionSearch">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <div class="card shadow">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="fas fa-history me-2"></i>Müşteri İşlemleri</h5>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover table-striped mb-0 table-mobile" id="transactionsTable">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Tarih</th>
+                                <th>İşlem</th>
+                                <th>Ürün</th>
+                                <th>Ayar</th>
+                                <th>Gram</th>
+                                <th class="d-none d-lg-table-cell">Milyem</th>
+                                <th class="d-none d-lg-table-cell">Has (g)</th>
+                                <th class="d-none d-lg-table-cell">İşç. (%)</th>
+                                <th class="d-none d-lg-table-cell">İşç. Has (g)</th>
+                                <th>İşlemler</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for tx in transactions %}
+                            <tr data-type="{{ 'in' if 'IN' in tx.type else 'out' }}" data-setting="{{ tx.setting }}">
+                                <td data-label="Tarih">{{ tx.date }}</td>
+                                <td data-label="İşlem">
+                                    <span class="badge {{ 'bg-success' if 'IN' in tx.type else 'bg-danger' }}">
+                                        {{ tx.type_tr }}
+                                    </span>
+                                    {% if tx.is_edited %}
+                                    <span class="badge bg-warning text-dark ms-1 d-md-inline-block d-none">Düzenlenmiş</span>
+                                    {% endif %}
+                                </td>
+                                <td data-label="Ürün">{{ tx.product or '-' }}</td>
+                                <td data-label="Ayar">{{ tx.setting }}</td>
+                                <td data-label="Gram">{{ tx.gram }}</td>
+                                <td data-label="Milyem" class="d-none d-lg-table-cell">{{ tx.purity }}</td>
+                                <td data-label="Has (g)" class="d-none d-lg-table-cell">{{ tx.pure_gold }}</td>
+                                <td data-label="İşç. (%)" class="d-none d-lg-table-cell">{{ tx.labor_percentage }}</td>
+                                <td data-label="İşç. Has (g)" class="d-none d-lg-table-cell">{{ tx.labor_pure_gold }}</td>
+                                <td data-label="İşlemler" class="text-end">
+                                    <a href="{{ url_for('main.transaction_detail', transaction_id=tx.id) }}" class="btn btn-sm btn-info">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                    <a href="{{ url_for('main.edit_transaction', transaction_id=tx.id) }}" class="btn btn-sm btn-primary">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="10" class="text-center py-4">
+                                    <div class="alert alert-info mb-0">
+                                        <i class="fas fa-info-circle me-2"></i>Bu müşteriye ait işlem kaydı bulunmamaktadır
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Mobil cihazlar için hızlı eylem butonu -->
+<div class="quick-actions d-md-none">
+    <a href="{{ url_for('main.add_customer_transaction', customer_id=customer.id) }}" class="quick-action-btn btn btn-success">
+        <i class="fas fa-plus"></i>
+    </a>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // İşlem filtresi
+    const transactionFilters = document.querySelectorAll('.transaction-filter');
+    const settingFilter = document.getElementById('settingFilter');
+    const transactionSearch = document.getElementById('transactionSearch');
+    const transactions = document.querySelectorAll('#transactionsTable tbody tr[data-type]');
+
+    function filterTransactions() {
+        const typeFilter = document.querySelector('.transaction-filter.active').getAttribute('data-filter');
+        const settingValue = settingFilter.value;
+        const searchValue = transactionSearch.value.toLowerCase();
+
+        let visibleCount = 0;
+
+        transactions.forEach(tr => {
+            const type = tr.getAttribute('data-type');
+            const setting = tr.getAttribute('data-setting');
+            const content = tr.textContent.toLowerCase();
+
+            // Tüm filtre kriterlerini kontrol et
+            const matchesType = typeFilter === 'all' || type === typeFilter;
+            const matchesSetting = settingValue === 'all' || setting === settingValue;
+            const matchesSearch = !searchValue || content.includes(searchValue);
+
+            // Görünürlüğü ayarla
+            tr.style.display = (matchesType && matchesSetting && matchesSearch) ? '' : 'none';
+
+            if (matchesType && matchesSetting && matchesSearch) {
+                visibleCount++;
+            }
+        });
+
+        // Eğer hiç görünür işlem yoksa "Sonuç bulunamadı" mesajı göster
+        const noResultsRow = document.querySelector('.no-results-row');
+        if (visibleCount === 0 && transactions.length > 0) {
+            if (!noResultsRow) {
+                const tbody = document.querySelector('#transactionsTable tbody');
+                const newRow = document.createElement('tr');
+                newRow.className = 'no-results-row';
+                newRow.innerHTML = `
+                    <td colspan="10" class="text-center py-4">
+                        <div class="alert alert-info mb-0">
+                            <i class="fas fa-info-circle me-2"></i>Filtreleme kriterlerine uygun işlem bulunamadı
+                        </div>
+                    </td>
+                `;
+                tbody.appendChild(newRow);
+            }
+        } else if (noResultsRow) {
+            noResultsRow.remove();
+        }
+    }
+
+    // İşlem türü filtreleme
+    transactionFilters.forEach(filter => {
+        filter.addEventListener('click', function() {
+            transactionFilters.forEach(f => f.classList.remove('active'));
+            this.classList.add('active');
+            filterTransactions();
+        });
+    });
+
+    // Ayar filtresi
+    settingFilter.addEventListener('change', filterTransactions);
+
+    // Arama filtresi
+    transactionSearch.addEventListener('input', filterTransactions);
+
+    // İşlem satırlarına tıklama ile detay sayfasına gitme (mobil)
+    if (window.innerWidth <= 768) {
+        transactions.forEach(tr => {
+            tr.addEventListener('click', function(e) {
+                // Eğer tıklanan element buton veya link değilse
+                if (!e.target.closest('a') && !e.target.closest('button')) {
+                    // Detay bağlantısına git
+                    const detailLink = this.querySelector('a.btn-info');
+                    if (detailLink) {
+                        window.location.href = detailLink.href;
+                    }
+                }
+            });
+
+            // Tıklanabilir olduğunu belirt
+            tr.classList.add('cursor-pointer');
+        });
+    }
+
+    // Mobil uyumluluk için card düzeni
+    function optimizeForMobile() {
+        if (window.innerWidth <= 576) {
+            document.querySelectorAll('.card .list-group-item').forEach(item => {
+                const content = item.querySelector('.d-flex');
+                if (content) {
+                    content.classList.remove('justify-content-between');
+                    content.classList.add('flex-column', 'align-items-start');
+
+                    const label = content.querySelector('.text-muted');
+                    const value = content.querySelector('.text-muted + span');
+
+                    if (label && value) {
+                        label.classList.add('mb-1');
+                        value.classList.add('ms-4');
+                    }
+                }
+            });
+        } else {
+            document.querySelectorAll('.card .list-group-item').forEach(item => {
+                const content = item.querySelector('.d-flex');
+                if (content) {
+                    content.classList.add('justify-content-between');
+                    content.classList.remove('flex-column', 'align-items-start');
+
+                    const label = content.querySelector('.text-muted');
+                    const value = content.querySelector('.text-muted + span');
+
+                    if (label && value) {
+                        label.classList.remove('mb-1');
+                        value.classList.remove('ms-4');
+                    }
+                }
+            });
+        }
+    }
+
+    optimizeForMobile();
+    window.addEventListener('resize', optimizeForMobile);
+
+    // Büyük ekranlarda Bootstrap tooltip'lerini etkinleştir
+    if (window.innerWidth > 768) {
+        const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+        tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl);
+        });
+    }
+
+    // Gram bakiye tablosu collapse işlevselliği
+    const gramBalanceTable = document.getElementById('gramBalanceTable');
+    const chevronIcon = gramBalanceTable.previousElementSibling.querySelector('.fa-chevron-down');
+    
+    gramBalanceTable.addEventListener('show.bs.collapse', function () {
+        chevronIcon.style.transform = 'rotate(180deg)';
+        chevronIcon.style.transition = 'transform 0.3s ease';
+    });
+    
+    gramBalanceTable.addEventListener('hide.bs.collapse', function () {
+        chevronIcon.style.transform = 'rotate(0deg)';
+        chevronIcon.style.transition = 'transform 0.3s ease';
+    });
+});
+</script>
+{% endblock %}

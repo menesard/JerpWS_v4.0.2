@@ -1,0 +1,65 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual Environment
+venv/
+env/
+ENV/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Database
+instance/*.db
+!instance/.gitkeep
+
+# Logs
+logs/*
+!logs/.gitkeep
+
+# Backups
+backups/**/
+!backups/daily/.gitkeep
+!backups/weekly/.gitkeep
+!backups/monthly/.gitkeep
+
+# SSL Certificates
+ssl/*
+!ssl/.gitkeep
+
+# Local development
+*.log
+*.bak
+*.tmp
+*.temp
+
+# Service files
+*.pid
+*.lock
+*.sock 

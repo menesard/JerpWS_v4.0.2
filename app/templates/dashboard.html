@@ -1,0 +1,846 @@
+{% extends 'base.html' %}
+
+{% block title %}Gösterge Paneli - Kuyumcu Takip Sistemi{% endblock %}
+
+{% block styles %}
+<style>
+    @media (max-width: 768px) {
+        .weight-card {
+            order: -1;
+            margin-bottom: 1rem;
+        }
+        .weight-display-wrapper {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .weight-display-mobile {
+            font-size: 1.5rem !important;
+        }
+        .weight-display-container {
+            margin-bottom: 0.5rem !important;
+        }
+        .card-body {
+            padding: 0.75rem !important;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h2 class="border-bottom pb-2 d-flex align-items-center">
+            <i class="fas fa-tachometer-alt me-2"></i>Gösterge Paneli
+            <span class="badge bg-primary ms-2">{{ selected_setting }} Ayar</span>
+        </h2>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Terazi Kartı -->
+    <div class="col-lg-4 col-md-6 mb-4 weight-card">
+        <div class="card shadow h-100 border-primary">
+            <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center py-2">
+                <h5 class="mb-0 d-flex align-items-center">
+                    <i class="fas fa-weight-hanging me-2"></i>Terazi
+                </h5>
+                <div class="d-flex align-items-center">
+                    <span id="weight-status" class="badge me-2 {% if weight_valid %}bg-success{% else %}bg-warning{% endif %}">
+                        {% if weight_valid %}Geçerli{% else %}Son Değer{% endif %}
+                    </span>
+                    <a href="{{ url_for('main.tare_scale') }}" class="btn btn-sm btn-light" title="Teraziyi Sıfırla">
+                        <i class="fas fa-balance-scale"></i>
+                    </a>
+                </div>
+            </div>
+            <div class="card-body d-flex flex-column align-items-center justify-content-center py-2">
+                <div class="weight-display-container text-center">
+                    <div class="weight-display-wrapper">
+                        <span class="display-1 fw-bold weight-display-mobile" id="weight-display">
+                            {{ '%.2f'|format(weight) }}
+                        </span>
+                        <span class="fs-2 ms-2">g</span>
+                    </div>
+                </div>
+                <div class="d-grid gap-2 w-100 mt-2">
+                    <a href="{{ url_for('main.operations') }}" class="btn btn-primary btn-sm">
+                        <i class="fas fa-exchange-alt me-2"></i>İşlem Yap
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Özet Durum Kartı -->
+    <div class="col-lg-8 col-md-6 mb-4">
+        <div class="card shadow h-100">
+            <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="fas fa-chart-pie me-2"></i>Bölge Durumları
+                </h5>
+                <span class="badge bg-light text-dark d-none d-md-inline-block">{{ selected_setting }} Ayar</span>
+            </div>
+            <div class="card-body p-0">
+                <div class="region-status-grid">
+                    {% for item in formatted_status %}
+                    <div class="region-status-item">
+                        <div class="region-icon-container">
+                            <i class="fas {% if item.region_en == 'safe' %}fa-vault{% elif item.region_en == 'table' %}fa-table{% elif item.region_en == 'polish' %}fa-brush{% elif item.region_en == 'melting' %}fa-fire{% elif item.region_en == 'saw' %}fa-cut{% elif item.region_en == 'acid' %}fa-flask{% else %}fa-box{% endif %} region-icon"></i>
+                        </div>
+                        <div class="region-details">
+                            <h6 class="mb-0">{{ item.region }}</h6>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="region-amount fw-bold {% if item.gram|float > 0 %}text-success{% else %}text-muted{% endif %}">{{ item.gram }} g</span>
+                                <span class="region-setting badge bg-primary">{{ item.setting }}</span>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Son İşlemler -->
+<div class="row">
+    <div class="col-12 mb-4">
+        <div class="card shadow">
+            <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="fas fa-history me-2"></i>Son İşlemler</h5>
+                <a href="{{ url_for('main.history') }}" class="btn btn-sm btn-light">
+                    <i class="fas fa-external-link-alt me-1"></i>Tüm Geçmiş
+                </a>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover table-striped mb-0 table-mobile" id="recent-logs-table">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Zaman</th>
+                                <th>İşlem</th>
+                                <th>Gram</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for log in logs %}
+                            <tr data-log='{{ log|tojson }}' style="cursor: pointer;" data-bs-toggle="modal" data-bs-target="#logDetailsModal">
+                                <td data-label="Zaman">{{ log.time.split('.')[0] }}</td>
+                                <td data-label="İşlem">
+                                    <div class="d-inline-block">
+                                        <span class="badge {% if log.operation_type == 'ADD' %}bg-success{% else %}bg-primary{% endif %}">
+                                            {{ change_operation_tr(log.operation_type) }}{% if log.operation_type == 'TRANSFER' %} ({{ change_region_tr(log.source_region) }} → {{ change_region_tr(log.target_region) }}){% endif %}
+                                        </span>
+                                    </div>
+                                </td>
+                                <td data-label="Gram">
+                                    <div class="d-inline-block">{{ log.gram }}</div>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="3" class="text-center">Henüz işlem kaydı bulunmuyor</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- İşlem Detayları Modal -->
+<div class="modal fade" id="logDetailsModal" tabindex="-1" aria-labelledby="logDetailsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="logDetailsModalLabel">
+                    <i class="fas fa-info-circle me-2"></i>İşlem Detayları
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Kapat"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row g-3">
+                    <div class="col-12">
+                        <div class="d-flex align-items-center mb-3">
+                            <div class="flex-shrink-0">
+                                <div class="detail-icon bg-primary text-white rounded-circle p-2">
+                                    <i class="fas fa-clock"></i>
+                                </div>
+                            </div>
+                            <div class="flex-grow-1 ms-3">
+                                <h6 class="mb-0 text-muted">Zaman</h6>
+                                <p class="mb-0" id="modal-time"></p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-12">
+                        <div class="d-flex align-items-center mb-3">
+                            <div class="flex-shrink-0">
+                                <div class="detail-icon bg-success text-white rounded-circle p-2">
+                                    <i class="fas fa-exchange-alt"></i>
+                                </div>
+                            </div>
+                            <div class="flex-grow-1 ms-3">
+                                <h6 class="mb-0 text-muted">İşlem</h6>
+                                <p class="mb-0" id="modal-operation"></p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-12">
+                        <div class="d-flex align-items-center mb-3">
+                            <div class="flex-shrink-0">
+                                <div class="detail-icon bg-warning text-dark rounded-circle p-2">
+                                    <i class="fas fa-weight-hanging"></i>
+                                </div>
+                            </div>
+                            <div class="flex-grow-1 ms-3">
+                                <h6 class="mb-0 text-muted">Gram</h6>
+                                <p class="mb-0" id="modal-gram"></p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-12">
+                        <div class="d-flex align-items-center mb-3">
+                            <div class="flex-shrink-0">
+                                <div class="detail-icon bg-info text-white rounded-circle p-2">
+                                    <i class="fas fa-arrow-right"></i>
+                                </div>
+                            </div>
+                            <div class="flex-grow-1 ms-3">
+                                <h6 class="mb-0 text-muted">Kaynak → Hedef</h6>
+                                <p class="mb-0">
+                                    <span id="modal-source"></span> → <span id="modal-target"></span>
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-12">
+                        <div class="d-flex align-items-center mb-3">
+                            <div class="flex-shrink-0">
+                                <div class="detail-icon bg-secondary text-white rounded-circle p-2">
+                                    <i class="fas fa-cog"></i>
+                                </div>
+                            </div>
+                            <div class="flex-grow-1 ms-3">
+                                <h6 class="mb-0 text-muted">Ayar</h6>
+                                <p class="mb-0" id="modal-setting"></p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-12">
+                        <div class="d-flex align-items-center">
+                            <div class="flex-shrink-0">
+                                <div class="detail-icon bg-dark text-white rounded-circle p-2">
+                                    <i class="fas fa-user"></i>
+                                </div>
+                            </div>
+                            <div class="flex-grow-1 ms-3">
+                                <h6 class="mb-0 text-muted">Kullanıcı</h6>
+                                <p class="mb-0" id="modal-user"></p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-2"></i>Kapat
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Hızlı İşlemler -->
+<div class="row d-none d-md-flex">
+    <div class="col-md-3 col-sm-6 mb-4">
+        <div class="card shadow h-100 quick-action-card">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div class="quick-action-icon bg-primary text-white">
+                        <i class="fas fa-users"></i>
+                    </div>
+                    <div class="ms-3">
+                        <h6 class="mb-1">Müşteriler</h6>
+                        <a href="{{ url_for('main.customers') }}" class="stretched-link">Müşterileri Görüntüle</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-3 col-sm-6 mb-4">
+        <div class="card shadow h-100 quick-action-card">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div class="quick-action-icon bg-success text-white">
+                        <i class="fas fa-user-plus"></i>
+                    </div>
+                    <div class="ms-3">
+                        <h6 class="mb-1">Yeni Müşteri</h6>
+                        <a href="{{ url_for('main.add_customer') }}" class="stretched-link">Müşteri Ekle</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-3 col-sm-6 mb-4">
+        <div class="card shadow h-100 quick-action-card">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div class="quick-action-icon bg-info text-white">
+                        <i class="fas fa-chart-bar"></i>
+                    </div>
+                    <div class="ms-3">
+                        <h6 class="mb-1">Stok Durumu</h6>
+                        <a href="{{ url_for('main.stock') }}" class="stretched-link">Stok Kontrol</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-3 col-sm-6 mb-4">
+        <div class="card shadow h-100 quick-action-card">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div class="quick-action-icon bg-warning text-dark">
+                        <i class="fas fa-balance-scale"></i>
+                    </div>
+                    <div class="ms-3">
+                        <h6 class="mb-1">Manuel İşlem</h6>
+                        <a href="{{ url_for('main.operations') }}" class="stretched-link">İşlem Yap</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-3 col-sm-6 mb-4">
+        <div class="card shadow h-100 quick-action-card">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div class="quick-action-icon bg-warning text-dark">
+                        <i class="fas fa-fire"></i>
+                    </div>
+                    <div class="ms-3">
+                        <h6 class="mb-1">Ramat İşlemi</h6>
+                        <a href="{{ url_for('main.ramat') }}" class="stretched-link">Ramat Yap / Fire Kayıtları</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-3 col-sm-6 mb-4">
+        <div class="card shadow h-100 quick-action-card">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div class="quick-action-icon bg-danger text-white">
+                        <i class="fas fa-money-bill-wave"></i>
+                    </div>
+                    <div class="ms-3">
+                        <h6 class="mb-1">Masraflar</h6>
+                        <a href="{{ url_for('main.expenses') }}" class="stretched-link">Masraf Ekle / Görüntüle</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-3 col-sm-6 mb-4">
+        <div class="card shadow h-100 quick-action-card">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div class="quick-action-icon bg-success text-white">
+                        <i class="fas fa-exchange-alt"></i>
+                    </div>
+                    <div class="ms-3">
+                        <h6 class="mb-1">Devir İşlemi</h6>
+                        <a href="{{ url_for('main.transfers') }}" class="stretched-link">Devir Hesapla</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-3 col-sm-6 mb-4">
+        <div class="card shadow h-100 quick-action-card">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div class="quick-action-icon bg-primary text-white">
+                        <i class="fas fa-cash-register"></i>
+                    </div>
+                    <div class="ms-3">
+                        <h6 class="mb-1">Günlük Kasa</h6>
+                        <a href="{{ url_for('main.daily_vault') }}" class="stretched-link">Kasa Kontrol</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+/* Mobil tablo görünümü için CSS düzeltmeleri */
+@media screen and (max-width: 768px) {
+    /* Tüm tablolar için genel kurallar */
+    .table {
+        width: 100% !important;
+        border: 0 !important;
+    }
+
+    /* Tablo başlıklarını gizle */
+    .table thead {
+        display: none !important;
+    }
+
+    /* Tablo satırlarını blok olarak göster */
+    .table tbody tr {
+        display: block !important;
+        margin-bottom: 1rem !important;
+        border: 1px solid #dee2e6 !important;
+        border-radius: 0.25rem !important;
+        background-color: #fff !important;
+    }
+
+    /* Tablo hücrelerini düzenle */
+    .table td,
+    .table th {
+        display: flex !important;
+        justify-content: space-between !important;
+        align-items: center !important;
+        padding: 0.75rem !important;
+        text-align: right !important;
+        border-bottom: 1px solid #dee2e6 !important;
+        min-height: 50px !important;
+        width: 100% !important;
+        box-sizing: border-box !important;
+    }
+
+    /* Son hücrenin alt çizgisini kaldır */
+    .table td:last-child {
+        border-bottom: 0 !important;
+    }
+
+    /* Hücre etiketleri için stil */
+    .table td::before {
+        content: attr(data-label);
+        float: left !important;
+        font-weight: bold !important;
+        text-align: left !important;
+        padding-right: 10px !important;
+        width: auto !important;
+        white-space: normal !important;
+    }
+
+    /* Hücre içeriği için stil */
+    .table td > div,
+    .table td > span {
+        text-align: right !important;
+        width: auto !important;
+        max-width: 50% !important;
+        margin-left: auto !important;
+    }
+
+    /* Metin taşma kontrolü - En önemli kısım */
+    .table td,
+    .table td *,
+    .table td div,
+    .table td span,
+    .table-mobile td,
+    .table-mobile td *,
+    .table-responsive td,
+    .table-responsive td * {
+        white-space: normal !important;
+        overflow: visible !important;
+        text-overflow: unset !important;
+        word-break: break-word !important;
+        word-wrap: break-word !important;
+        min-width: 0 !important;
+        max-width: none !important;
+        width: auto !important;
+    }
+
+    /* Badge'ler için özel stil */
+    .badge {
+        display: inline-block !important;
+        white-space: normal !important;
+        text-align: center !important;
+        line-height: 1.2 !important;
+        padding: 5px 8px !important;
+        height: auto !important;
+        width: auto !important;
+    }
+
+    /* Responsive tablo container'ı için */
+    .table-responsive {
+        overflow-x: visible !important;
+        -webkit-overflow-scrolling: touch !important;
+    }
+
+    /* Tablo container'ı içindeki tüm elementler */
+    .table-responsive * {
+        white-space: normal !important;
+        overflow: visible !important;
+        text-overflow: unset !important;
+    }
+}
+
+/* Genel tablo stilleri */
+.table td,
+.table th {
+    vertical-align: middle !important;
+}
+
+/* Region status grid için özel stiller */
+.region-status-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding: 1rem;
+}
+
+.region-status-item {
+    display: flex;
+    align-items: center;
+    padding: 0.75rem;
+    border: 1px solid #dee2e6;
+    border-radius: 0.25rem;
+    background-color: #fff;
+}
+
+.region-icon-container {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 1rem;
+}
+
+.region-icon {
+    font-size: 1.25rem;
+    color: #6c757d;
+}
+
+.region-details {
+    flex: 1;
+}
+
+.region-amount {
+    font-size: 1rem;
+}
+
+@media (max-width: 768px) {
+    .region-status-grid {
+        padding: 0.5rem;
+    }
+    
+    .region-status-item {
+        padding: 0.5rem;
+    }
+    
+    .region-icon-container {
+        width: 35px;
+        height: 35px;
+    }
+}
+
+/* Modal detay ikonları için stil */
+.detail-icon {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.detail-icon i {
+    font-size: 1.1rem;
+}
+
+/* Modal içeriği için stil */
+.modal-body p {
+    font-size: 1rem;
+    margin: 0;
+}
+
+.modal-body h6 {
+    font-size: 0.85rem;
+    margin: 0;
+}
+
+/* Mobil görünüm için düzenlemeler */
+@media (max-width: 768px) {
+    .detail-icon {
+        width: 35px;
+        height: 35px;
+    }
+    
+    .modal-body p {
+        font-size: 0.95rem;
+    }
+}
+</style>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // İşlem ve bölge çeviri fonksiyonları
+    function change_operation_tr(operation) {
+        const operations = {
+            'ADD': 'Ekleme',
+            'REMOVE': 'Çıkarma',
+            'TRANSFER': 'Transfer',
+            'RAMAT': 'Ramat',
+            'FIRE': 'Fire'
+        };
+        return operations[operation] || operation;
+    }
+
+    function change_region_tr(region) {
+        const regions = {
+            'safe': 'Kasa',
+            'kasa': 'Kasa',
+            'table': 'Masa',
+            'masa': 'Masa',
+            'polish': 'Cila',
+            'melting': 'Eritme',
+            'saw': 'Patlatma',
+            'acid': 'Boru',
+            'yer': 'Yer'
+        };
+        return regions[region] || region;
+    }
+
+    // Terazi güncelleme işlemi
+    const updateWeightInterval = startWeightUpdater('weight-display', 'weight-status', 500);
+
+    // Sayfadan ayrılırken interval'ı durdur
+    window.addEventListener('beforeunload', function() {
+        clearInterval(updateWeightInterval);
+    });
+
+    // Son işlemler tablosunda arama yapma
+    const searchInput = document.querySelector('.search-input');
+    if (searchInput) {
+        searchInput.addEventListener('input', function() {
+            const searchTerm = this.value.toLowerCase();
+            const tableRows = document.querySelectorAll('#recent-logs-table tbody tr');
+
+            tableRows.forEach(row => {
+                const rowText = row.textContent.toLowerCase();
+                row.style.display = rowText.includes(searchTerm) ? '' : 'none';
+            });
+        });
+    }
+
+    // Mobil cihazlarda bölge durumlarını optimize et
+    const optimizeRegionStatus = function() {
+        if (window.innerWidth <= 768) {
+            const regionGrid = document.querySelector('.region-status-grid');
+            if (regionGrid) {
+                regionGrid.style.gridTemplateColumns = 'repeat(auto-fill, minmax(120px, 1fr))';
+            }
+        } else {
+            const regionGrid = document.querySelector('.region-status-grid');
+            if (regionGrid) {
+                regionGrid.style.gridTemplateColumns = 'repeat(auto-fill, minmax(150px, 1fr))';
+            }
+        }
+    };
+
+    optimizeRegionStatus();
+    window.addEventListener('resize', optimizeRegionStatus);
+
+    // Terazi manuel sıfırlama butonu
+    const tareButton = document.querySelector('[title="Teraziyi Sıfırla"]');
+    if (tareButton) {
+        tareButton.addEventListener('click', async function(e) {
+            e.preventDefault();
+
+            // Buton durumunu güncelle
+            this.classList.add('disabled');
+            this.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>';
+
+            try {
+                // API isteği yap
+                const result = await tareScale();
+
+                if (result && !result.error) {
+                    showNotification('Terazi başarıyla sıfırlandı', 'success');
+                } else {
+                    showNotification(result.error || 'Terazi sıfırlanamadı', 'danger');
+                }
+            } catch (error) {
+                showNotification('Bir hata oluştu: ' + error.message, 'danger');
+            } finally {
+                // Butonu eski haline getir
+                this.classList.remove('disabled');
+                this.innerHTML = '<i class="fas fa-balance-scale"></i>';
+            }
+        });
+    }
+
+    // Bölge durumlarını güncelleme
+    function updateRegionInfo() {
+        fetch(`/api/status/${encodeURIComponent('{{ selected_setting }}')}`)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Bölge bilgileri alınamadı');
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log("Bölge verileri:", data); // Debugging için
+                if (data && data.status) {
+                    // Veriyi göstermek için HTML'i güncelle
+                    const regionStatus = data.status;
+                    const regionContainer = document.querySelector('.region-status-grid');
+
+                    if (regionContainer) {
+                        // Mevcut içeriği temizle
+                        regionContainer.innerHTML = '';
+
+                        let hasContent = false;
+                        
+                        // Öncelikli bölgeler
+                        const priorityRegions = ['kasa', 'safe', 'masa', 'table', 'yer'];
+                        
+                        // Önce öncelikli bölgeleri ekle
+                        priorityRegions.forEach(region => {
+                            if (regionStatus[region]) {
+                                for (const [setting, gram] of Object.entries(regionStatus[region])) {
+                                    hasContent = true;
+                                    let regionTr = region;
+                                    
+                                    // Bölge adı çevirisi
+                                    if (region === 'safe') regionTr = 'kasa';
+                                    else if (region === 'table') regionTr = 'masa';
+                                    
+                                    createRegionItem(regionContainer, region, regionTr, setting, gram);
+                                }
+                            }
+                        });
+                        
+                        // Sonra diğer bölgeleri ekle
+                        for (const [region, settings] of Object.entries(regionStatus)) {
+                            if (!priorityRegions.includes(region)) {
+                                for (const [setting, gram] of Object.entries(settings)) {
+                                    hasContent = true;
+                                    let regionTr = region;
+                                    
+                                    // Bölge adı çevirisi
+                                    if (region === 'polish') regionTr = 'cila';
+                                    else if (region === 'melting') regionTr = 'eritme';
+                                    else if (region === 'saw') regionTr = 'patlatma';
+                                    else if (region === 'acid') regionTr = 'boru';
+                                    
+                                    createRegionItem(regionContainer, region, regionTr, setting, gram);
+                                }
+                            }
+                        }
+
+                        // Hiç veri yoksa mesaj göster
+                        if (!hasContent) {
+                            regionContainer.innerHTML = `
+                                <div class="alert alert-info m-3">
+                                    <i class="fas fa-info-circle me-2"></i>
+                                    Gösterilecek bölge bilgisi bulunamadı. Lütfen işlem yapmayı deneyiniz.
+                                </div>
+                            `;
+                        }
+                    }
+                } else {
+                    console.error('Bölge verileri uygun formatta değil:', data);
+                }
+            })
+            .catch(error => {
+                console.error('Bölge bilgileri yüklenirken hata:', error);
+                // Hata mesajını kullanıcıya göster
+                const regionContainer = document.querySelector('.region-status-grid');
+                if (regionContainer) {
+                    regionContainer.innerHTML = `
+                        <div class="alert alert-danger m-3">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            Bölge bilgileri yüklenemedi. Lütfen daha sonra tekrar deneyiniz.
+                        </div>
+                    `;
+                }
+            });
+    }
+
+    // Bölge öğesi oluşturma yardımcı fonksiyonu
+    function createRegionItem(container, region, regionTr, setting, gram) {
+        const item = document.createElement('div');
+        item.className = 'region-status-item';
+
+        // İkon seçimi
+        let iconClass = 'fa-box';
+        if (region === 'safe' || region === 'kasa') iconClass = 'fa-vault';
+        else if (region === 'table' || region === 'masa') iconClass = 'fa-table';
+        else if (region === 'polish') iconClass = 'fa-brush';
+        else if (region === 'melting') iconClass = 'fa-fire';
+        else if (region === 'saw') iconClass = 'fa-cut';
+        else if (region === 'acid') iconClass = 'fa-flask';
+
+        // İçerik oluşturma
+        item.innerHTML = `
+            <div class="region-icon-container">
+                <i class="fas ${iconClass} region-icon"></i>
+            </div>
+            <div class="region-details">
+                <h6 class="mb-0">${regionTr}</h6>
+                <div class="d-flex justify-content-between align-items-center">
+                    <span class="region-amount fw-bold ${gram > 0 ? 'text-success' : 'text-muted'}">${parseFloat(gram).toFixed(2)} g</span>
+                    <span class="region-setting badge bg-primary">${setting}</span>
+                </div>
+            </div>
+        `;
+
+        container.appendChild(item);
+    }
+
+    // Sayfa yüklendiğinde çağır
+    updateRegionInfo();
+
+    // Belirli aralıklarla güncelle (isteğe bağlı)
+    setInterval(updateRegionInfo, 30000); // Her 30 saniyede bir güncelle
+
+    // İşlem detayları modal işlemleri
+    const logDetailsModal = document.getElementById('logDetailsModal');
+    if (logDetailsModal) {
+        logDetailsModal.addEventListener('show.bs.modal', function(event) {
+            const button = event.relatedTarget;
+            const row = button.closest('tr');
+            const logData = JSON.parse(row.dataset.log);
+
+            // Zaman formatını düzenle (salise kısmını kaldır)
+            const timeParts = logData.time.split('.');
+            const formattedTime = timeParts[0];
+
+            // Modal içeriğini doldur
+            document.getElementById('modal-time').textContent = formattedTime;
+            document.getElementById('modal-operation').textContent = change_operation_tr(logData.operation_type);
+            document.getElementById('modal-gram').textContent = logData.gram;
+            
+            // Kaynak ve hedef bölgelerini büyük harfle başlat
+            const sourceRegion = change_region_tr(logData.source_region);
+            const targetRegion = change_region_tr(logData.target_region);
+            document.getElementById('modal-source').textContent = sourceRegion;
+            document.getElementById('modal-target').textContent = targetRegion;
+            
+            document.getElementById('modal-setting').textContent = logData.setting;
+            document.getElementById('modal-user').textContent = logData.username;
+        });
+    }
+});
+</script>
+{% endblock %}
