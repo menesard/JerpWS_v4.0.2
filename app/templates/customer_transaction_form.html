@@ -61,7 +61,7 @@
                             <label for="gram" class="form-label">Gram <span class="text-danger">*</span></label>
                             <div class="input-group">
                                 <span class="input-group-text"><i class="fas fa-weight-hanging"></i></span>
-                                <input type="number" step="0.2" min="0.2" class="form-control" id="gram" name="gram"
+                                <input type="number" step="0.01" min="0.01" class="form-control" id="gram" name="gram"
                                        value="{{ '%.2f'|format(weight) }}" required>
                                 <span class="input-group-text">g</span>
                                 <button type="button" id="use-scale" class="btn btn-outline-secondary">
@@ -77,10 +77,16 @@
                             <label class="form-label">Ayar</label>
                             <div class="input-group">
                                 <span class="input-group-text"><i class="fas fa-gem"></i></span>
-                                <input type="text" class="form-control" value="{{ selected_setting }}" id="setting_display" readonly>
+                                <select class="form-select" id="setting_display" name="setting_display" required>
+                                    {% for setting in settings %}
+                                    <option value="{{ setting.name }}" data-purity="{{ setting.purity_per_thousand }}" {% if setting.name == selected_setting %}selected{% endif %}>
+                                        {{ setting.name }} Ayar ({{ setting.purity_per_thousand }}‰)
+                                    </option>
+                                    {% endfor %}
+                                </select>
                             </div>
                             <div class="form-text">
-                                Ayar değiştirmek için üst menüyü kullanın.
+                                Ayar seçimi yapabilirsiniz.
                             </div>
                         </div>
                     </div>
@@ -518,6 +524,21 @@ document.addEventListener('DOMContentLoaded', function() {
             }, 300);
         }, duration);
     }
+
+    gramInput.addEventListener('focus', function() {
+        if (this.value === '0.00' || this.value === '0.0' || this.value === '0') {
+            this.value = '';
+        }
+    });
+
+    // Ayar seçimi değiştiğinde milyem değerini güncelle
+    const settingDisplay = document.getElementById('setting_display');
+    settingDisplay.addEventListener('change', function() {
+        const selectedOption = this.options[this.selectedIndex];
+        const purityValue = selectedOption.dataset.purity;
+        purityInput.value = purityValue;
+        calculatePureGold();
+    });
 });
 </script>
 {% endblock %}

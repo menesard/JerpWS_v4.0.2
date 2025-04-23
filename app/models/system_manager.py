@@ -126,16 +126,15 @@ class SystemManager:
 
     @staticmethod
     def add_item(region_name, setting_name, gram, user_id=None):
-        """Bölgeye altın ekle (masa üzerinden)"""
+        """Bölgeye altın ekle (doğrudan kasadan)"""
         # Check user permissions
         if user_id:
             user = User.query.get(user_id)
-            if user and user.role == 'staff' and region_name in ['masa', 'table', 'yer']:
+            if user and user.role == 'staff' and region_name in ['masa', 'table']:
                 return False
 
         region_id = SystemManager.get_region_id(region_name)
         setting_id = SystemManager.get_setting_id(setting_name)
-        table_id = SystemManager.get_region_id('table')  # masa bölgesi ID'si
         safe_id = SystemManager.get_region_id('safe')  # kasa bölgesi ID'si
 
         # ID kontrol
@@ -143,58 +142,31 @@ class SystemManager:
             return False
         if not setting_id:
             return False
-        if not table_id:
-            return False
         if not safe_id:
             return False
 
         try:
-            if region_name == 'table' or region_name == 'masa':
-                # Kasadan masaya transfer
-                # 1. Kasadan çıkar
-                subtract_op = Operation(
-                    operation_type=OPERATION_SUBTRACT,
-                    source_region_id=safe_id,
-                    target_region_id=table_id,
-                    setting_id=setting_id,
-                    gram=float(gram),
-                    user_id=user_id
-                )
-                # 2. Masaya ekle
-                add_op = Operation(
-                    operation_type=OPERATION_ADD,
-                    source_region_id=safe_id,
-                    target_region_id=table_id,
-                    setting_id=setting_id,
-                    gram=float(gram),
-                    user_id=user_id
-                )
-                db.session.add(subtract_op)
-                db.session.add(add_op)
-                # Kasadan masaya işlem eklendi
-            else:
-                # Masadan diğer bölgeye transfer
-                # 1. Masadan çıkar
-                subtract_op = Operation(
-                    operation_type=OPERATION_SUBTRACT,
-                    source_region_id=table_id,
-                    target_region_id=region_id,
-                    setting_id=setting_id,
-                    gram=float(gram),
-                    user_id=user_id
-                )
-                # 2. Hedef bölgeye ekle
-                add_op = Operation(
-                    operation_type=OPERATION_ADD,
-                    source_region_id=table_id,
-                    target_region_id=region_id,
-                    setting_id=setting_id,
-                    gram=float(gram),
-                    user_id=user_id
-                )
-                db.session.add(subtract_op)
-                db.session.add(add_op)
-                # Masadan bölgeye işlem eklendi
+            # Kasadan bölgeye transfer
+            # 1. Kasadan çıkar
+            subtract_op = Operation(
+                operation_type=OPERATION_SUBTRACT,
+                source_region_id=safe_id,
+                target_region_id=region_id,
+                setting_id=setting_id,
+                gram=float(gram),
+                user_id=user_id
+            )
+            # 2. Bölgeye ekle
+            add_op = Operation(
+                operation_type=OPERATION_ADD,
+                source_region_id=safe_id,
+                target_region_id=region_id,
+                setting_id=setting_id,
+                gram=float(gram),
+                user_id=user_id
+            )
+            db.session.add(subtract_op)
+            db.session.add(add_op)
 
             db.session.commit()
             return True
@@ -204,25 +176,22 @@ class SystemManager:
 
     @staticmethod
     def remove_item(region_name, setting_name, gram, user_id=None):
-        """Bölgeden altın çıkar (masa üzerinden)"""
+        """Bölgeden altın çıkar (doğrudan kasaya)"""
 
         # Check user permissions
         if user_id:
             user = User.query.get(user_id)
-            if user and user.role == 'staff' and region_name in ['masa', 'table', 'yer']:
+            if user and user.role == 'staff' and region_name in ['masa', 'table']:
                 return False
 
         region_id = SystemManager.get_region_id(region_name)
         setting_id = SystemManager.get_setting_id(setting_name)
-        table_id = SystemManager.get_region_id('table')  # masa bölgesi ID'si
         safe_id = SystemManager.get_region_id('safe')  # kasa bölgesi ID'si
 
         # ID kontrol
         if not region_id:
             return False
         if not setting_id:
-            return False
-        if not table_id:
             return False
         if not safe_id:
             return False
@@ -235,52 +204,27 @@ class SystemManager:
             return False
 
         try:
-            if region_name == 'table' or region_name == 'masa':
-                # Masadan kasaya transfer
-                # 1. Masadan çıkar
-                subtract_op = Operation(
-                    operation_type=OPERATION_SUBTRACT,
-                    source_region_id=table_id,
-                    target_region_id=safe_id,
-                    setting_id=setting_id,
-                    gram=float(gram),
-                    user_id=user_id
-                )
-                # 2. Kasaya ekle
-                add_op = Operation(
-                    operation_type=OPERATION_ADD,
-                    source_region_id=table_id,
-                    target_region_id=safe_id,
-                    setting_id=setting_id,
-                    gram=float(gram),
-                    user_id=user_id
-                )
-                db.session.add(subtract_op)
-                db.session.add(add_op)
-                # Masadan kasaya işlem eklendi
-            else:
-                # Diğer bölgeden masaya transfer
-                # 1. Bölgeden çıkar
-                subtract_op = Operation(
-                    operation_type=OPERATION_SUBTRACT,
-                    source_region_id=region_id,
-                    target_region_id=table_id,
-                    setting_id=setting_id,
-                    gram=float(gram),
-                    user_id=user_id
-                )
-                # 2. Masaya ekle
-                add_op = Operation(
-                    operation_type=OPERATION_ADD,
-                    source_region_id=region_id,
-                    target_region_id=table_id,
-                    setting_id=setting_id,
-                    gram=float(gram),
-                    user_id=user_id
-                )
-                db.session.add(subtract_op)
-                db.session.add(add_op)
-                # Bölgeden masaya işlem eklendi
+            # Bölgeden kasaya transfer
+            # 1. Bölgeden çıkar
+            subtract_op = Operation(
+                operation_type=OPERATION_SUBTRACT,
+                source_region_id=region_id,
+                target_region_id=safe_id,
+                setting_id=setting_id,
+                gram=float(gram),
+                user_id=user_id
+            )
+            # 2. Kasaya ekle
+            add_op = Operation(
+                operation_type=OPERATION_ADD,
+                source_region_id=region_id,
+                target_region_id=safe_id,
+                setting_id=setting_id,
+                gram=float(gram),
+                user_id=user_id
+            )
+            db.session.add(subtract_op)
+            db.session.add(add_op)
 
             db.session.commit()
             return True
@@ -1392,3 +1336,81 @@ class SystemManager:
         except Exception as e:
             print(f"Error in get_all_region_status: {str(e)}")
             return {}
+
+    @staticmethod
+    def transfer_to_region(region_name, setting_name, gram, user_id):
+        """Kasadan bölgeye transfer"""
+        safe_id = SystemManager.get_region_id('kasa')
+        region_id = SystemManager.get_region_id(region_name)
+        setting_id = SystemManager.get_setting_id(setting_name)
+
+        if not all([safe_id, region_id, setting_id]):
+            return False
+
+        try:
+            # Kasadan bölgeye transfer
+            # 1. Kasadan çıkar
+            subtract_op = Operation(
+                operation_type=OPERATION_SUBTRACT,
+                source_region_id=safe_id,
+                target_region_id=region_id,
+                setting_id=setting_id,
+                gram=float(gram),
+                user_id=user_id
+            )
+            # 2. Bölgeye ekle
+            add_op = Operation(
+                operation_type=OPERATION_ADD,
+                source_region_id=safe_id,
+                target_region_id=region_id,
+                setting_id=setting_id,
+                gram=float(gram),
+                user_id=user_id
+            )
+            db.session.add(subtract_op)
+            db.session.add(add_op)
+
+            db.session.commit()
+            return True
+        except Exception as e:
+            db.session.rollback()
+            return False
+
+    @staticmethod
+    def transfer_to_safe(region_name, setting_name, gram, user_id):
+        """Bölgeden kasaya transfer"""
+        safe_id = SystemManager.get_region_id('kasa')
+        region_id = SystemManager.get_region_id(region_name)
+        setting_id = SystemManager.get_setting_id(setting_name)
+
+        if not all([safe_id, region_id, setting_id]):
+            return False
+
+        try:
+            # Bölgeden kasaya transfer
+            # 1. Bölgeden çıkar
+            subtract_op = Operation(
+                operation_type=OPERATION_SUBTRACT,
+                source_region_id=region_id,
+                target_region_id=safe_id,
+                setting_id=setting_id,
+                gram=float(gram),
+                user_id=user_id
+            )
+            # 2. Kasaya ekle
+            add_op = Operation(
+                operation_type=OPERATION_ADD,
+                source_region_id=region_id,
+                target_region_id=safe_id,
+                setting_id=setting_id,
+                gram=float(gram),
+                user_id=user_id
+            )
+            db.session.add(subtract_op)
+            db.session.add(add_op)
+
+            db.session.commit()
+            return True
+        except Exception as e:
+            db.session.rollback()
+            return False

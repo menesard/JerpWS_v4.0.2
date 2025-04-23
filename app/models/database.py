@@ -39,7 +39,7 @@ class Setting(db.Model):
         """Varsayılan ayarları oluştur"""
         default_settings = [
             {'name': '8', 'purity': 333},
-            {'name': '14', 'purity': 583},
+            {'name': '14', 'purity': 585},
             {'name': '18', 'purity': 750},
             {'name': '21', 'purity': 875},
             {'name': '22', 'purity': 916},
@@ -232,7 +232,6 @@ def init_db():
     # Varsayılan bölgeler
     default_regions = [
         {'name': 'kasa', 'is_default': True},
-        {'name': 'masa', 'is_default': True},
         {'name': 'yer', 'is_default': True}
     ]
 

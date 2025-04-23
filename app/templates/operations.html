@@ -114,11 +114,11 @@
                             <label class="form-label mb-2">Bölge <span class="text-danger">*</span></label>
                             <div class="region-grid d-flex flex-wrap gap-2">
                                 {% for region in regions %}
-                                    {% if not current_user.role == 'staff' or (region.name != 'masa' and region.name != 'table' and region.name != 'yer') %}
+                                    {% if region.name != 'masa' and region.name != 'table' %}
                                         <div class="region-button-container">
                                             <input type="radio" class="btn-check region-radio" name="region" id="region_{{ region.name }}" value="{{ region.name }}" {% if loop.first %}checked{% endif %} required>
                                             <label class="region-button desktop-region-button" for="region_{{ region.name }}">
-                                                <i class="fas {% if region.name == 'table' %}fa-table{% elif region.name == 'polish' %}fa-brush{% elif region.name == 'melting' %}fa-fire{% elif region.name == 'saw' %}fa-cut{% elif region.name == 'acid' %}fa-flask{% else %}fa-box{% endif %}"></i>
+                                                <i class="fas {% if region.name == 'polish' %}fa-brush{% elif region.name == 'melting' %}fa-fire{% elif region.name == 'saw' %}fa-cut{% elif region.name == 'acid' %}fa-flask{% else %}fa-box{% endif %}"></i>
                                                 <span>{{ region.name_tr }}</span>
                                             </label>
                                         </div>
@@ -804,13 +804,20 @@ document.addEventListener('DOMContentLoaded', function() {
         
         operationForm.addEventListener('submit', function(e) {
             const selectedRegion = regionSelect.value;
-            if (userRole === 'staff' && (selectedRegion === 'masa' || selectedRegion === 'table' || selectedRegion === 'yer')) {
+            if (userRole === 'staff' && (selectedRegion === 'masa' || selectedRegion === 'table')) {
                 e.preventDefault();
                 alert('Bu bölgeyi kullanma yetkiniz yok!');
                 return false;
             }
         });
     }
+
+    // Gram input alanına tıklandığında varsayılan değerin silinmesi için JavaScript kodunu ekliyorum
+    gramInput.addEventListener('focus', function() {
+        if (this.value === '0.00' || this.value === '0.0' || this.value === '0') {
+            this.value = '';
+        }
+    });
 });
 </script>
 {% endblock %}

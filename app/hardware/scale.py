@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 
 # Sistem türüne göre varsayılan port belirleme
 def get_default_port():
-    return "COM3"  # Her zaman COM3'ü varsayılan port olarak kullan
+    return "COM5"  # Her zaman COM3'ü varsayılan port olarak kullan
 
 # Kullanılabilir portları listele
 def list_available_ports():
